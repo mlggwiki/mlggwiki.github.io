@@ -1,0 +1,614 @@
+:root {
+  --bg: #f5f6f8; --panel: #ffffff; --line: #e2e5ea; --text: #1d2330; --muted: #6a7282;
+  --accent: #d6336c; --accent-soft: #fde7ef; --chip: #eef0f4; --tile: #f0e6ea;
+  --phys: #d9480f; --en: #1c7ed6; --agi: #2f9e44;
+  --buff: #2f9e44; --debuff: #e03131; --ailment: #9c36b5; --trait: #1971c2; --target: #e8590c; --link: #0c8599;
+  --filter-w: 300px;
+  /* rarity frames, in the colours of the game's logos */
+  --rf1: linear-gradient(160deg, #e4f1f8, #8fa9bb 55%, #5d7688);
+  --rf3: linear-gradient(160deg, #fff1b8, #f6b24a 50%, #b86b1d);
+  --rf5: linear-gradient(135deg, #7cf3ff, #4c63ff 35%, #ff7ad9 70%, #ffe08a);
+  --rf7: linear-gradient(135deg, #ffd1ea, #ff3d9a 55%, #b3125f);
+  --rf9: linear-gradient(135deg, #f3dcff, #a64dff 55%, #5b1fb3);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161b; --panel: #1c1f26; --line: #2c313b; --text: #e6e8ec; --muted: #9aa2b1;
+    --accent: #f06595; --accent-soft: #3a1f2b; --chip: #282c35; --tile: #2a2228;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body { background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif; }
+button, input, select { font: inherit; color: inherit; }
+
+/* ---- columns: [top bar + unit tiles] | details (full height) | filters (hidden, slides in; pinned = a real column) ---- */
+.layout { height: 100vh; display: grid; grid-template-columns: minmax(280px, 30%) minmax(0, 1fr) 0; overflow: hidden; }
+.layout.pinned { grid-template-columns: minmax(280px, 28%) minmax(0, 1fr) var(--filter-w); }
+.side { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.top { display: flex; align-items: center; gap: 10px; padding: 8px 14px; height: 50px; flex: none; background: var(--panel); border-bottom: 1px solid var(--line); }
+.top h1 { font-size: 16px; margin: 0; white-space: nowrap; color: var(--accent); }
+.top #search { flex: 1; min-width: 80px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); margin: 0; }
+.count { color: var(--muted); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; flex: none;
+  width: 28px; text-align: right; }   /* fixed width: a 2- or 3-digit count must not move the search box (owner) */
+.reset { flex: none; width: 26px; height: 26px; margin-left: -6px; border: 1px solid transparent; border-radius: 6px; background: none;
+  display: grid; place-items: center; cursor: pointer; }
+.reset svg { width: 15px; height: 15px; fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.reset:hover { border-color: var(--line); }
+.reset:hover svg { stroke: var(--accent); }
+.pane { overflow-y: auto; min-width: 0; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+  scrollbar-gutter: stable; }   /* room for the scrollbar always kept: nothing moves sideways (owner) */
+.pane::-webkit-scrollbar { width: 6px; height: 6px; }
+.pane::-webkit-scrollbar-track { background: transparent; }
+.pane::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+.pane::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+.units { flex: 1; padding: 12px 14px 32px; }
+.detail { padding: 0 14px 40px; border-left: 1px solid var(--line); }
+
+/* unit tiles, as in the lcplayer app: picture on top, name strip under it; the border is the rarity frame */
+.tiles { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.tiles .empty { grid-column: 1 / -1; }
+.tile { position: relative; padding: 0; overflow: hidden; border-radius: 8px; display: flex; flex-direction: column;
+  cursor: pointer; text-align: center; border: 3px solid transparent;
+  background: linear-gradient(var(--tile), var(--tile)) padding-box, var(--rf, var(--line)) border-box; }
+.rf1 { --rf: var(--rf1); } .rf2 { --rf: var(--rf1); } .rf3 { --rf: var(--rf3); } .rf4 { --rf: var(--rf3); }
+.rf5 { --rf: var(--rf5); } .rf6 { --rf: var(--rf5); } .rf7 { --rf: var(--rf7); } .rf8 { --rf: var(--rf7); }
+.rf9, .rf10, .rf11, .rf12, .rf13, .rf14 { --rf: var(--rf9); }
+.tile .pic { border-radius: 5px 5px 0 0; }
+.tile:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tile.sel { outline: 3px solid var(--accent); outline-offset: 1px; }
+.tile .nm { padding: 3px 4px 4px; font-size: 12px; line-height: 1.25; font-weight: 600; min-height: 2.6em;
+  display: flex; flex-direction: column; justify-content: center; }
+
+/* picture, or a placeholder until the game's images are downloaded */
+.pic { position: relative; aspect-ratio: 5 / 4; width: 100%; display: grid; place-items: center; overflow: hidden;
+  color: rgba(255,255,255,.9); font-weight: 800; font-size: 34px; }
+.pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.pic.t1 { background: linear-gradient(135deg, #f08c5a, var(--phys)); }
+.pic.t2 { background: linear-gradient(135deg, #5aa9f0, var(--en)); }
+.pic.t3 { background: linear-gradient(135deg, #69c77e, var(--agi)); }
+.pic.big { width: 150px; border-radius: 10px; font-size: 48px; flex: none; }
+.pic.small { width: 50px; border-radius: 6px; font-size: 16px; flex: none; }
+
+/* icons and logos (site/img/icons); a letter or the name shows until the picture is there */
+.ic { position: relative; overflow: hidden; flex: none; border-radius: 50%; display: grid; place-items: center;
+  font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+.ic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.ic.img { background: none !important; color: transparent; }
+.ic:has(> img) { color: transparent; }                  /* loading: no letter flash (owner) */
+.ic.t1 { background: var(--phys); } .ic.t2 { background: var(--en); } .ic.t3 { background: var(--agi); }
+.logo { display: inline-flex; align-items: center; flex: none; }
+.logo img { height: 100%; width: auto; display: block; }
+.logo.img .alt, .logo:has(> img) .alt { display: none; }   /* loading: no name flash (owner) */
+.logo .alt { font-weight: 800; font-style: italic; font-size: 12px; padding: 0 6px; border-radius: 6px; line-height: 20px;
+  background: var(--chip); white-space: nowrap; }
+.logo.rar { height: 24px; }
+.logo.rar.big { height: 30px; }
+.logo.rar .alt { color: #fff; background: #5d7688; }
+.logo.org { height: 30px; }
+.logo.org img { max-width: 124px; object-fit: contain; }
+.logo.org .alt { font-size: 11px; font-style: normal; font-weight: 600; line-height: 24px; }
+.kindic { width: 20px; height: 20px; display: inline-block; vertical-align: -4px; background: none; }
+.kindic:not(.img), .gradeic:not(.img):not(.sgrade *) { display: none !important; }
+.gradeic { width: 20px; height: 20px; display: inline-block; vertical-align: -5px; margin-right: 4px; }
+
+/* ---- filter panel: a small tab on the right edge; hover shows the panel, the pin keeps it open ---- */
+.filters { position: relative; min-width: 0; }
+.filter-btn { position: absolute; top: 12px; right: 0; z-index: 3; writing-mode: vertical-rl; padding: 12px 6px;
+  border: 1px solid var(--line); border-right: 0; border-radius: 8px 0 0 8px; background: var(--panel); cursor: default;
+  font-weight: 600; color: var(--muted); display: flex; gap: 6px; align-items: center; transition: right .2s ease; }
+.filter-btn b { writing-mode: horizontal-tb; background: var(--accent); color: #fff; border-radius: 8px; font-size: 11px; padding: 0 5px; }
+.filter-btn b:empty { display: none; }
+.filter-body { position: absolute; top: 0; right: 0; bottom: 0; width: var(--filter-w); z-index: 4;
+  overflow-y: auto; scrollbar-width: none; background: var(--panel); border-left: 1px solid var(--line);
+  padding: 10px 14px 14px; box-shadow: -8px 0 24px rgba(0,0,0,.18); transform: translateX(100%); transition: transform .2s ease;
+  display: flex; flex-direction: column; }
+.filter-body::-webkit-scrollbar { display: none; }
+.filters:hover .filter-body, .layout.pinned .filter-body { transform: none; }
+.layout.pinned .filter-body { box-shadow: none; }
+.filters:hover .filter-btn, .layout.pinned .filter-btn { right: var(--filter-w); }
+.layout.pinned .filter-btn { display: none; }
+.fhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
+/* Find Memoria: the memoria search in the advanced filter's top row, like the top search box (owner) */
+#msearch { flex: 1; min-width: 0; padding: 5px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); margin: 0; }
+#msearch[hidden] { display: none; }
+.pin { border: 1px solid transparent; background: none; border-radius: 6px; width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer; }
+.pin svg { width: 16px; height: 16px; fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linejoin: round; transform: rotate(35deg); transition: transform .15s; }
+.pin:hover { border-color: var(--line); }
+.pin.on { background: var(--accent-soft); border-color: var(--accent); }
+.pin.on svg { stroke: var(--accent); fill: var(--accent); transform: none; }
+.fgroup { position: relative; }
+/* nothing in the panel may be squeezed (a short window scrolled the EN/JP switch away to 0 px) */
+.filter-body > * { flex-shrink: 0; }
+.fgroup h4 { margin: 5px 0 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.fgroup .opts { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; }
+/* memoria slots laid out like the party: front row, then back row */
+.fgroup[data-group="slot"] .opts { display: grid; grid-template-columns: repeat(3, max-content); }
+/* options: nothing picked in a group = all of them (full colour); once something is picked, the rest are greyed out */
+.opt { border: 1px solid transparent; background: transparent; border-radius: 8px; padding: 2px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; }
+.opt .ic { width: 28px; height: 28px; }
+.opt > * { transition: opacity .12s, filter .12s; }
+.has-picks .opt:not(.on) > * { filter: grayscale(1); opacity: .4; }
+.has-picks .opt:not(.on):not(.zero):hover > * { filter: none; opacity: 1; }
+.opt:hover { border-color: var(--line); }
+.opt.on { border-color: var(--accent); background: var(--accent-soft); }
+.opt .logo.rar { height: 24px; }
+.opt .logo.org { height: 26px; }
+/* team / school: a button showing the picks, a list to choose from (over the panel, so nothing moves) */
+.dd-btn { width: 100%; min-height: 40px; display: flex; align-items: center; gap: 8px; padding: 4px 12px; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--bg); cursor: pointer; }
+/* drop-downs like the Monmusu wiki: a coloured name inside the box, then --- ; the pick replaces the name (owner);
+   dashed lines between drop-downs, no heading above them */
+.dd-lbl { flex: none; font-size: 14px; font-weight: 500; letter-spacing: .03em; text-transform: uppercase; }
+.has-picks .dd-lbl { display: none; }
+.fgroup.dd.dead .dd-btn { opacity: .35; filter: grayscale(1); cursor: default; }
+/* Memoria page, Rarity: no border or box, only the logo (the others grey out when one is picked: owner) */
+.mode-memoria #groups [data-group="rarity"] .logo.rar { height: 18px; }             /* smaller (owner) */
+.mode-memoria #groups [data-group="rarity"] .opt, .mode-memoria #groups [data-group="rarity"] .opt:hover,
+.mode-memoria #groups [data-group="rarity"] .opt.on { border-color: transparent; background: none; }
+.dd-school-g .dd-lbl { color: var(--link); } .dd-team-g .dd-lbl { color: var(--target); }
+.dd-offense-g .dd-lbl { color: var(--target); } .dd-survival-g .dd-lbl { color: var(--link); } .dd-others-g .dd-lbl { color: var(--trait); }
+.dd-buff-g .dd-lbl { color: var(--buff); } .dd-ailment-g .dd-lbl { color: var(--ailment); } .dd-debuff-g .dd-lbl { color: var(--debuff); } .dd-other-g .dd-lbl { color: var(--trait); }
+.fgroup.dd + .fgroup.dd { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+/* the pick inside the box: a chip with x (removes it) */
+.ddchip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.ddx { color: var(--muted); font-size: 15px; line-height: 1; padding: 0 4px; border-radius: 4px; cursor: pointer; }
+.ddx:hover { color: #fff; background: var(--accent); }
+/* one-pick boxes (Memoria page): the x replaces the arrow at the right end */
+.dd-end .ddx { font-size: 18px; padding: 0 6px; }
+.fdd.has-picks .caret { display: none; }
+/* the open list: what can be picked has a border and lights up on hover; greyed-out items stay flat */
+.dd-list .opt { border: 1px solid transparent; }
+.dd-list .opt:not(.zero) { border-color: var(--line); background: var(--bg); }
+.dd-list .opt:not(.zero):hover { border-color: var(--accent); background: var(--accent-soft); }
+.dd-list .opt.on { border-color: var(--accent); background: var(--accent-soft); }
+.dd-list .opt.zero { background: none; }
+/* the filter panel's lists (Monmusu wiki): open to the left of the panel, one option per row with its count */
+#groups .dd-list.fly, #mazeGroups .dd-list.fly { position: fixed; right: auto; width: 330px; grid-template-columns: 1fr; gap: 4px; padding: 8px; z-index: 40;
+  border-radius: 12px 0 0 12px; }
+#groups .dd-list.fly .opt, #mazeGroups .dd-list.fly .opt { justify-content: space-between; min-height: 38px; padding: 4px 12px 4px 8px; }
+#groups .dd-list.fly .opt .tag, #mazeGroups .dd-list.fly .opt .tag { font-size: 13px; padding: 3px 12px; max-width: 240px; font-weight: 400; }
+.mode-memoria #groups .fgroup.dd.has-picks .opt:not(.on):not(.zero) > * { filter: none; opacity: 1; }
+#groups .dd-list.fly .opt .logo.org { height: 26px; }
+.ocnt { color: var(--muted); font-size: 12px; margin-left: 12px; font-variant-numeric: tabular-nums; }
+.dd-list .opt.zero .ocnt { opacity: .6; }
+#groups .fgroup.dd:first-of-type, #groups .fgroup:not(.dd) + .fgroup.dd,
+#mazeGroups .fgroup:not(.dd) + .fgroup.dd { margin-top: 8px; }
+/* Find Memoria (owner): [rarity | type], attribute, the maze switch, evenly apart; the rarity logos in buttons as
+   tall as the type icons' so the row lines up */
+#groups .frow { display: flex; gap: 24px; align-items: flex-start; }
+#groups .frow > .fgroup { flex: none; }
+#groups > :is(.fgroup:not(.dd), .frow) + :is(.fgroup:not(.dd), .frow) { margin-top: 12px; }
+#groups > :is(.fgroup:not(.dd), .frow) h4, #groups .frow h4 { margin: 0 0 4px; }
+.mode-memoria #groups [data-group="rarity"] .opt { height: 34px; display: inline-flex; align-items: center; }
+.mode-memoria #groups { margin-top: 12px; }
+.dd-val { flex: 1; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
+.dd-val .logo.org { height: 24px; }
+.dd-val .logo.org img { max-width: 100px; }
+.dd-none { color: var(--muted); font-size: 13px; letter-spacing: .1em; }
+.dd-val .tag { font-size: 11px; }
+.caret { color: var(--muted); font-size: 11px; }
+.dd-list { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 6; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 6px; box-shadow: 0 12px 28px rgba(0,0,0,.35); overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; align-content: start; }
+.dd-list.up { top: auto; bottom: calc(100% - 20px); }
+.dd-list .opt { min-height: 34px; }
+.dd-list .opt .tag { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.check { display: flex; align-items: center; gap: 6px; color: var(--muted); margin: 8px 0 4px; }
+#clear { margin-top: 8px; }
+.btn { border: 1px solid var(--accent); color: var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 6px 12px;
+  font-weight: 600; cursor: pointer; }
+.btn:hover { background: var(--accent); color: #fff; }
+
+/* ---- details ---- */
+.empty { color: var(--muted); padding: 40px; text-align: center; }
+/* the header of a unit / memoria page: a band from the very top, like the top bar on the left */
+.summary { display: flex; gap: 18px; background: var(--panel); border: 1px solid var(--line); border-top: 0;
+  border-radius: 0 0 12px 12px; padding: 16px; }
+.summary h2 { margin: 0; font-size: 22px; }
+.summary .sub { color: var(--muted); margin: 2px 0 10px; }
+.ruby { color: var(--muted); font-size: 13px; font-weight: 400; margin-left: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 12px; white-space: nowrap; }
+.title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.variant-btn { border: 1px solid var(--accent); color: var(--accent); background: var(--accent-soft); border-radius: 999px;
+  padding: 2px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.variant-btn b { background: var(--accent); color: #fff; border-radius: 8px; padding: 0 5px; margin-left: 3px; font-size: 10px; }
+.variant-btn:hover { background: var(--accent); color: #fff; }
+/* summary icons: no words, the name in the tooltip */
+.marks { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mark .ic { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700;
+  color: #fff; background: var(--muted); }
+.logo.org { height: 30px; }
+.logo.org .alt { font-size: 11px; font-style: normal; font-weight: 600; line-height: 24px; }
+.posic { width: 30px; height: 30px; display: inline-grid; place-items: center; border-radius: 6px; background: var(--chip); }
+.posic svg { width: 22px; height: 22px; }
+.posic rect { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.posic rect.on { fill: var(--accent); stroke: var(--accent); }
+
+/* variant list (VARIANT button) */
+.dlg { position: fixed; margin: 0; inset: auto; box-shadow: 0 12px 32px rgba(0,0,0,.35); border: 1px solid var(--line); border-radius: 12px; padding: 0; background: var(--panel); color: var(--text);
+  width: min(460px, calc(100vw - 32px)); max-height: min(80vh, 640px); }
+.dlg::backdrop { background: rgba(0,0,0,.15); }
+.dlg-head { display: flex; align-items: baseline; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); }
+.dlg-head span { color: var(--muted); font-size: 12px; }
+.dlg-close { margin-left: auto; border: 0; background: none; font-size: 22px; line-height: 1; cursor: pointer; color: var(--muted); }
+.dlg-list { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.vrow { display: flex; align-items: center; gap: 10px; padding: 5px 10px 5px 5px; border: 2px solid transparent; border-radius: 10px;
+  background: var(--bg); cursor: pointer; text-align: left; }
+.vrow .pic { border: 2px solid transparent; background: var(--rf, var(--line)) border-box; }
+.vrow .vt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.vrow small { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.vrow:hover { border-color: var(--line); }
+.vrow.on { border-color: var(--accent); background: var(--accent-soft); }
+
+/* tab row, with the skill level slider on the right (Skills tab only); stays at the top while scrolling */
+.tabs { display: flex; align-items: center; gap: 4px; margin: 8px 0 12px; border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 2; background: var(--bg); padding-top: 6px; }
+.tabs button { border: 0; background: none; padding: 8px 14px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--muted); font-weight: 600; }
+.tabs button.on { color: var(--accent); border-bottom-color: var(--accent); }
+.level { margin-left: auto; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; padding: 0 4px; }
+.level input { width: 260px; accent-color: var(--accent); }
+.level .lv { font-weight: 700; min-width: 48px; color: var(--text); }
+.skill .desc b, .skill .slv, .level .lv { font-variant-numeric: tabular-nums; }
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+.skill .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.skill .kind { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 6px; color: #fff; background: var(--muted); }
+.skill .kind.k1 { background: #1971c2; } .skill .kind.k2 { background: #7048e8; } .skill .kind.k3 { background: var(--accent); }
+.skill .name { font-weight: 700; font-size: 15px; }
+.skill .meta { color: var(--muted); font-size: 12px; margin-left: auto; }
+.skill .desc { margin: 8px 0; white-space: pre-line; }
+.skill .desc b { color: var(--accent); }
+.tag { border-radius: 999px; padding: 1px 9px; font-size: 11px; font-weight: 600; border: 1px solid currentColor; background: none; }
+button.tag { cursor: pointer; font: inherit; font-size: 11px; font-weight: 600; }
+button.tag:hover { box-shadow: inset 0 0 0 1px currentColor; filter: brightness(1.35); }
+/* a tag that is the active filter: filled in its colour */
+.tag.on { color: #fff !important; }
+.tag.buff.on { background: var(--buff); border-color: var(--buff); } .tag.debuff.on { background: var(--debuff); border-color: var(--debuff); }
+.tag.ailment.on { background: var(--ailment); border-color: var(--ailment); } .tag.trait.on { background: var(--trait); border-color: var(--trait); }
+.tag.target.on { background: var(--target); border-color: var(--target); } .tag.link.on { background: var(--link); border-color: var(--link); }
+.tag.buff { color: var(--buff); } .tag.debuff { color: var(--debuff); } .tag.ailment { color: var(--ailment); }
+.tag.trait { color: var(--trait); } .tag.target { color: var(--target); } .tag.link { color: var(--link); }
+.note-line { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+
+.profile dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0 0 12px; }
+.profile dt { color: var(--muted); }
+.profile dd { margin: 0; }
+.profile p { white-space: pre-line; margin: 0 0 12px; }
+
+/* Stats: one card like the game's unit screen (max value + grade) */
+.statcard { max-width: 460px; padding: 6px 16px; }
+.srow { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.srow:last-child { border-bottom: 0; }
+.sic { width: 22px; height: 22px; flex: none; fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.sname { flex: 1; font-weight: 600; }
+.sval { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sgrade { width: 48px; display: flex; justify-content: flex-end; }
+.sgrade .gradeic { width: 44px; height: 22px; display: grid; place-items: center; margin: 0; vertical-align: 0;
+  border-radius: 6px; background: var(--chip); color: var(--muted); font-weight: 800; font-size: 13px; }
+.sgrade .gradeic.img { background: none; }
+
+/* ---- Characters | Memoria tabs above the tile list ---- */
+.modes { display: flex; flex: none; padding: 8px 14px 0; gap: 4px; border-bottom: 1px solid var(--line); }
+.modes button { flex: 1; border: 0; background: none; padding: 7px 10px; cursor: pointer; font-weight: 700; color: var(--muted);
+  border-bottom: 2px solid transparent; }
+.modes button.on { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* memoria tiles: the picture inside the game's film frame (300x168), name under it */
+.mpic { position: relative; width: 100%; aspect-ratio: 300 / 168; overflow: hidden; border-radius: 6px; background: var(--tile);
+  display: grid; place-items: center; }
+.mpic .ph { color: var(--muted); font-weight: 800; font-size: 28px; }
+/* the card picture is the frame's size (300x168): the frame lies on top of it */
+.mpic .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.mpic .frm { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.mpic.big { width: 360px; flex: none; border-radius: 10px; aspect-ratio: 16 / 9; }   /* the artwork, no frame */
+
+.who { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 2px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--chip); cursor: pointer; font-size: 12px; font-weight: 600; }
+.who:hover { border-color: var(--accent); }
+.pic.tiny { width: 32px; border-radius: 999px; font-size: 12px; aspect-ratio: 1; }
+
+/* ---- the title is a menu: pages, then the language ---- */
+.menu-wrap { position: relative; flex: none; }
+.title-btn { border: 0; background: none; padding: 2px 4px; margin-left: -4px; border-radius: 6px; cursor: pointer; display: flex;
+  align-items: center; gap: 4px; font-size: 16px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+.title-btn:hover { background: var(--accent-soft); }
+.title-btn .caret { font-size: 11px; color: var(--accent); }
+.menu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 20; min-width: 230px; display: flex; flex-direction: column; gap: 2px;
+  padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 28px rgba(0,0,0,.35); }
+.menu .mi { border: 0; background: none; text-align: left; padding: 7px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.menu .mi:hover { background: var(--line); }
+.menu .mi.on { background: var(--accent); color: #fff; }
+.menu-sep { height: 1px; background: var(--line); margin: 4px 2px; }
+.menu-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 2px 12px; }
+/* language: EN | JP, then (EN) the version drop-down */
+.lang-row { display: flex; margin: 2px 12px 4px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; align-self: flex-start; }
+.lang-row .ml { border: 0; background: none; padding: 5px 18px; cursor: pointer; font-weight: 700; }
+.lang-row .ml:hover { background: var(--line); }
+.lang-row .ml.on { background: var(--accent); color: #fff; }
+.ver-wrap { display: flex; flex-direction: column; padding-bottom: 4px; }
+.ver-dd { margin: 2px 12px 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 10px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--bg); cursor: pointer; }
+.ver-sub { margin: 4px 12px 0; display: flex; flex-direction: column; gap: 2px; padding: 4px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg); }
+.ver-sub .mv { border: 0; background: none; text-align: left; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
+.ver-sub .mv:hover { background: var(--line); }
+.ver-sub .mv.on { background: var(--accent); color: #fff; }
+/* full pages (Game mechanics, Percentile ranking): a top bar with the menu, then the page */
+.fullpage { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.page-top h1 { margin: 0 0 0 8px; font-size: 16px; color: var(--muted); font-weight: 600; }
+.page-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.rank-page { padding: 12px 20px 16px; overflow: hidden; display: flex; justify-content: center; }
+.rank-wrap { display: flex; flex-direction: column; min-height: 0; max-width: 100%; }
+.rank-wrap .rankcard { flex: 1; min-height: 0; overflow: auto; margin-bottom: 0; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.rank-wrap .rtable { width: auto; }
+.rank-bar { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 6px 24px; margin-bottom: 12px; }
+.rank-bar .note-line { flex-basis: 100%; margin: 0; }
+.rank-bar .btn { margin-bottom: 2px; }
+.rank-count { margin-bottom: 6px; background: var(--accent); color: #fff; border-radius: 10px; padding: 0 9px; font-weight: 700; font-size: 12px; }
+.muted { color: var(--muted); }
+
+/* ---- unit page additions ---- */
+.sum-main { min-width: 0; flex: 1; }
+.find-btn { margin-left: auto; border: 1px solid var(--accent); color: var(--accent); background: var(--accent-soft); border-radius: 8px;
+  padding: 4px 12px; font-weight: 700; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.find-btn:hover { background: var(--accent); color: #fff; }
+/* Stats: the values (like the game's screen) and, beside them, the percentiles with the compare row on top;
+   both boxes have the same head and row heights, so each bar sits next to its stat */
+.statwrap { display: flex; gap: 12px; align-items: flex-start; max-width: 1100px; }
+.statwrap .card { margin-bottom: 0; padding: 0 16px; }
+.statwrap .statcard { flex: 0 0 380px; max-width: none; }
+.pctcard { flex: 1; min-width: 0; }
+.shead { height: 56px; display: flex; align-items: center; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.statwrap .srow, .prow { height: 46px; padding: 0; border-bottom: 1px solid var(--line); }
+.statwrap .srow:last-child, .prow:last-child { border-bottom: 0; }
+.prow { display: flex; align-items: center; gap: 12px; }
+.prow .pbar { flex: 0 1 50%; }
+.prow.empty { border-bottom-color: transparent; }
+.prow b { min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
+.prank { min-width: 72px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.prank small { color: var(--muted); font-weight: 500; }
+.stats-note { max-width: 1100px; margin-top: 8px; }
+.scope-row { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+.scope-row .lbl { color: var(--muted); font-size: 12px; margin-right: 8px; }
+.scope-row .opt .ic { width: 34px; height: 34px; }
+/* compare chips: the one in use in colour, the others grey (hover shows the colour) */
+.scope-row .opt.scope:not(.on):not(.zero) > * { filter: grayscale(1); opacity: .45; }
+.scope-row .opt.scope:not(.on):not(.zero):hover > * { filter: none; opacity: 1; }
+.srow .sname { flex: none; width: 70px; }
+.srow .sval { min-width: 90px; text-align: right; }
+.pbar { flex: 1; height: 5px; border-radius: 3px; background: var(--chip); overflow: hidden; display: block; min-width: 40px; }
+.pbar i { display: block; height: 100%; border-radius: 3px; background: var(--accent); opacity: .55; }
+/* History */
+.histcard { max-width: 760px; }
+.htable { width: 100%; border-collapse: collapse; }
+.htable th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 4px 8px; border-bottom: 1px solid var(--line); }
+.htable td { padding: 7px 8px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.htable tr.first td { background: var(--accent-soft); font-weight: 600; }
+.hk { font-weight: 600; }
+.hk.k-attribute, .hk.k-premium { color: var(--muted); font-weight: 500; }
+.hk.k-limited { color: var(--ailment); } .hk.k-extra { color: var(--link); } .hk.k-login { color: var(--buff); }
+/* Animation */
+.animcard { max-width: 1100px; }
+.anim-host { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden;
+  display: grid; place-items: center; }
+.anim-host .cardanim-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.anim-btns { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.anim-btn { border: 1px solid var(--line); padding: 3px 10px; font-size: 12px; font-weight: 600; background: var(--bg); }
+
+/* ---- Memoria page, left: position (2 rows x 3) and the unit ---- */
+.finder { display: flex; flex-direction: column; gap: 10px; }
+/* top: [attribute | role], [school, team | the party slots + x2/x1]; then a line and the units. The filters stay
+   put, only the units scroll (owner). Each group is shaded (no border). */
+.pane.units.finder-mode { overflow: hidden; display: flex; flex-direction: column; padding-bottom: 0; }
+.finder-mode #finder { flex: 1; min-height: 0; }
+.ftop { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.ftop > [data-fgroup] { display: flex; align-items: center; justify-content: center; padding: 8px 6px; }
+.ftop > [data-fgroup] .opts { flex-wrap: nowrap; }
+.fcol { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.fbox { background: var(--panel); border-radius: 10px; padding: 4px 10px 8px; }   /* shade only, no border (owner) */
+.fpos { display: flex; flex-direction: column; }
+.fpos h4 { margin: 3px 0 5px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.funits { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; margin-top: 10px; padding: 10px 2px 24px 0; border-top: 1px solid var(--line);
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.fhint { color: var(--muted); font-size: 13px; text-align: center; margin: 24px 12px; }
+.slotgrid { display: grid; grid-template-columns: repeat(3, minmax(38px, 1fr)); gap: 4px; }
+.xfilter { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 14px; }
+/* x2 / x1: the same chips as on the memoria pictures (x2 filled, x1 outlined); once one is picked the other greys out */
+.xbtn { height: 24px; border: 1px solid var(--line); border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer; padding: 0;
+  background: var(--chip); color: var(--muted); }
+.xbtn:not(.zero):hover { border-color: var(--accent); color: var(--accent); }
+.xbtn.x2.on { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+.xbtn.x1.on { background: var(--panel); border-color: var(--accent); color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+.slotbox { height: 32px; border: 2px solid var(--line); border-radius: 7px; background: var(--panel); cursor: pointer; font-weight: 800;
+  font-size: 13px; color: var(--muted); padding: 0; }
+.slotbox:hover { border-color: var(--accent); color: var(--text); }
+.slotbox.on { border-color: var(--accent); background: var(--accent); color: #fff; }
+.zero, .slotbox.zero { opacity: .3; filter: grayscale(1); cursor: default !important; }
+.slotbox.zero:hover { border-color: var(--line); }
+.opt.zero > * { opacity: 1; }
+.who small, .ru small { color: var(--muted); font-size: 11px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.finder .fgroup .opts { gap: 2px; }
+/* Characters, the left filter (owner): the Find Memoria page's layout under the tabs; the funnel button shows /
+   hides it (Monmusu wiki); right box = type, position (Front / Back / Both), one row each (no rarity: owner) */
+.ufilter { flex: none; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+/* two rows as tall as the School / Team buttons (.fdd: 2px above, 44px), one at the top, one at the bottom: type
+   level with School, position level with Team (owner) */
+.ustack { display: grid; grid-template-rows: auto auto; align-content: space-between; padding: 2px 6px 0; }
+.ustack > .fgroup { min-height: 44px; display: flex; align-items: center; }
+.ustack > .fgroup > .opts { flex: 1; }
+.ustack .opts { justify-content: space-between; flex-wrap: nowrap; }
+.ustack .opt { height: 32px; min-width: 40px; display: inline-flex; align-items: center; justify-content: center; }
+.lf-btn { position: relative; width: auto; min-width: 26px; display: inline-flex; align-items: center; gap: 2px; padding: 0 4px; }
+.lf-btn b { font-size: 10px; color: var(--accent); }
+.lf-btn.open, .lf-btn.has { border-color: var(--accent); }
+.lf-btn.open svg, .lf-btn.has svg { stroke: var(--accent); }
+.finder .opt .ic { width: 26px; height: 26px; }
+.fdd { margin-top: 2px; }
+/* school / team: tall enough for the logos (some are big lettering) */
+.fdd .dd-btn { min-height: 44px; }
+.fdd .dd-val .logo.org { height: 30px; }
+.fdd .dd-val .logo.org img { max-width: 150px; }
+/* the open list: one logo per row, a bit wider than the button */
+.fdd .dd-list { grid-template-columns: 1fr; width: max(100%, 260px); right: auto; }
+.fdd .dd-list .opt { min-height: 44px; justify-content: flex-start; padding: 4px 10px; overflow: hidden; }
+.fdd .dd-list .logo.org { height: 30px; max-width: 100%; }
+.fdd .dd-list .logo.org img { max-width: 220px; }
+.upick { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.usch-h { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 4px;
+  padding-bottom: 3px; border-bottom: 1px solid var(--line); }
+.usch-h .logo.org { height: 22px; }
+.usch-h .logo.org img { max-width: 90px; }
+.utiles { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+.ftile .nm { font-size: 11px; min-height: 0; padding: 2px 3px 3px; }
+.ftile .nm small { display: block; font-size: 9px; font-weight: 500; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ftile.zero:hover { outline: 0; }
+
+/* ---- Memoria page, right: the matches ---- */
+.who span { display: flex; flex-direction: column; line-height: 1.2; text-align: left; }
+.mresults { margin-top: 14px; }
+/* [name   ] | [name – text ........ tags, who] | [name – text ........ tags, who]
+   [picture] | [                    ✓ verdict] | [                    ✓ verdict]
+             | [pic Maze name – text ................................... tags]   (owner) */
+.mres { display: grid; grid-template-columns: 200px minmax(0, 1fr) minmax(0, 1fr); gap: 8px 10px; }
+.mres-side { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mres.maze .mres-side { grid-row: 1 / 3; }
+.mres-pic { position: relative; width: 200px; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 6px; }
+.mres-title { padding: 4px 10px; border-radius: 8px; background: linear-gradient(90deg, var(--accent-soft), var(--chip)); }
+.mres-skill { grid-row: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px 12px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+.mres .c0 { grid-column: 2; } .mres .c1 { grid-column: 3; } .mres.one .c0 { grid-column: 2 / 4; }
+/* one paragraph: name – text (wraps), the tags and icons at its end (owner) */
+.mline { line-height: 1.55; }
+.mline .desc { white-space: pre-line; }
+.mline .dash { color: var(--muted); }
+.mline .mmeta { display: inline-flex; vertical-align: middle; margin-left: 8px; }
+.mfoot { margin-top: auto; padding-top: 6px; border-top: 1px dashed var(--line); display: flex; justify-content: flex-end; }
+.mfoot:has(> .verdict[hidden]) { display: none; }
+.mres-maze { grid-column: 2 / 4; grid-row: 2; min-height: 0; }
+.mres-maze .kind.km { background: #0ca678; margin-right: 8px; vertical-align: 1px; }
+.mres .off { opacity: .45; }
+.rc { font-weight: 600; }
+.mzsw .seg { display: flex; gap: 4px; }
+.mzsw .segb { flex: 1; border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 3px; padding: 4px 0;
+  font-size: 12px; font-weight: 400; cursor: pointer; }
+.mzsw .segb:hover { border-color: var(--accent); color: var(--text); }
+.mzsw .segb.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+/* ---- Maze relics page: a filter bar, then cards like the game's ---- */
+.maze-page { padding: 12px 20px 40px; }
+.maze-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 14px; }
+.maze-bar #mazeSearch { width: 260px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.mz-rar { display: flex; gap: 4px; }
+.opt.mz { border: 1px solid var(--line); padding: 3px 12px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.opt.mz.on { color: var(--accent); }
+.maze-bar .check { margin: 0; }
+.maze-bar .note-line { flex-basis: 100%; margin: 0; }
+/* one relic per row: picture | name | rarity buttons | effect | type / attribute condition */
+.rgrid { display: flex; flex-direction: column; gap: 6px; max-width: 1400px; }
+.rrowl { display: grid; grid-template-columns: 52px 200px 190px minmax(0, 1fr) 90px; gap: 14px; align-items: center;
+  padding: 6px 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+.rrowl:hover { border-color: var(--accent); }
+.rpic { width: 52px; height: 52px; border-radius: 10px; background: #eef3fb; display: grid; place-items: center; overflow: hidden; }
+.rpic img { width: 100%; height: 100%; object-fit: contain; }
+.rtitle { font-weight: 600; }
+.rtext { line-height: 1.5; }
+.rcond { display: flex; gap: 4px; justify-content: flex-end; }
+.rcond .mark .ic { width: 28px; height: 28px; }
+.rbtns { display: flex; gap: 4px; }
+.rbtn { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 1px 10px; font-size: 11px; font-weight: 700;
+  color: var(--muted); cursor: pointer; }
+.rbtn:hover { border-color: var(--accent); }
+.rbtn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.rbtn.r3:not(.on) { color: #f6b24a; } .rbtn.r5:not(.on) { color: #7c9bff; } .rbtn.r7:not(.on) { color: #ff3d9a; } .rbtn.r9:not(.on) { color: #a64dff; }
+
+.mres-eff .kind { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 6px; color: #fff; background: var(--muted); }
+.mres-eff .name { font-weight: 700; }
+.mres-eff .desc { white-space: pre-line; }
+.mres-eff .desc b { color: var(--accent); }
+/* the line under an effect: every chip, picture and icon as tall as a tag (owner) */
+.mmeta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+/* memoria cards (owner): the English chips (tags, "Every ally", Maze) small, square-ish (2px), not bold; every icon
+   and picture on the line as tall as them */
+.mmeta > * { height: 18px; }
+.mmeta .tag, .mmeta .chip, .mres-eff .kind { display: inline-flex; align-items: center; height: 18px; padding: 0 6px;
+  border-radius: 2px; font-size: 10.5px; font-weight: 400; }
+.mmeta .who { padding: 0 8px 0 0; gap: 5px; font-size: 11px; }
+.mmeta .who .pic.tiny { width: 18px; font-size: 9px; }
+.mmeta .who span { flex-direction: row; align-items: baseline; gap: 4px; }
+.mmeta .who small { font-size: 10px; }
+.mmeta .logo.org { height: 18px; }
+.mmeta .logo.org img { max-width: 100px; }
+.mmeta .mark .ic { width: 18px; height: 18px; font-size: 9px; }
+.mmeta .posic { width: 24px; height: 18px; }
+.mmeta .posic svg { width: 17px; height: 14px; }
+
+.mres-pic:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mres-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mres-name { border: 0; background: none; padding: 0; font-weight: 400; font-size: 14px; line-height: 1.3; cursor: pointer; text-align: left; }
+.mres-name:hover { color: var(--accent); }
+.xbadge { position: absolute; top: 8px; right: 8px; z-index: 2; border-radius: 8px; padding: 1px 9px; font-weight: 800; font-size: 14px;
+  background: var(--chip); color: var(--muted); box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+.xbadge.x2 { background: var(--accent); color: #fff; }
+.xbadge.x1 { background: var(--panel); color: var(--accent); border: 1px solid var(--accent); }
+.verdict { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 6px; margin-right: 4px; }
+.verdict.yes { background: var(--buff); color: #fff; }
+.verdict.no { background: var(--chip); color: var(--muted); }
+.verdict.slot { background: var(--accent-soft); color: var(--buff); border: 1px solid var(--buff); }
+/* a memoria in full (dialog) */
+/* the memoria picture viewer: the artwork as big as the window allows, the name under it */
+.dlg.mdlg { inset: 0; margin: auto; width: fit-content; max-width: calc(100vw - 48px); max-height: calc(100vh - 48px); padding: 0;
+  overflow: hidden; background: #000; }
+.dlg.mdlg::backdrop { background: rgba(0,0,0,.75); }
+.view-img { display: block; width: min(1600px, calc(100vw - 48px), calc((100vh - 100px) * 16 / 9)); aspect-ratio: 16 / 9; object-fit: contain;
+  cursor: zoom-out; }                                      /* a click on it closes the viewer */
+.view-cap { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--panel); }
+.view-cap .logo.rar { height: 22px; }
+.view-x { position: absolute; top: 6px; right: 10px; color: #fff; text-shadow: 0 1px 4px #000; z-index: 2; }
+
+/* ---- Percentile ranking ---- */
+.rankcard { padding: 0; }
+.rtable { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.rtable th { position: sticky; top: 0; background: var(--panel); text-align: left; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--muted); padding: 8px 6px; border-bottom: 1px solid var(--line); z-index: 1; white-space: nowrap; }
+.rtable th[data-sort] { cursor: pointer; }
+.rtable th[data-sort]:hover, .rtable th.on { color: var(--accent); }
+.rtable td { padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.rtable tbody tr { cursor: pointer; }
+.rtable tbody tr:hover td { background: var(--accent-soft); }
+.rtable td.on { background: rgba(240, 101, 149, .06); }
+.rtable .num { text-align: right; }
+.rk { color: var(--muted); width: 32px; }
+/* a row: # | the unit's picture + name | attribute(s) | role | per stat: value | bar + % (no bold, owner) */
+.ru { display: flex; align-items: center; gap: 10px; min-width: 170px; max-width: 250px; }
+.ru small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ru > span { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.ru .rn { font-size: 14px; }
+.pic.rpic { width: 60px; flex: none; border-radius: 6px; font-size: 18px; }
+.ricons { white-space: nowrap; }
+.ricons .ic { width: 28px; height: 28px; display: inline-grid; margin-right: 3px; vertical-align: middle; }
+/* per stat: value | % ; a small gap inside the pair, a bigger one between stats (owner) */
+.rtable th.stat, .rtable td.rv { padding-left: 26px; padding-right: 6px; }
+.rtable th.pcth, .rtable td.rpct { padding-left: 0; padding-right: 8px; }
+.rtable td.rv { font-variant-numeric: tabular-nums; }
+.rtable td.rpct { white-space: nowrap; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; min-width: 38px; }
+
+/* every filter (owner): no bold text, corners only just rounded (3px) - the filter panel, the Memoria page's
+   left side, the ranking and relic bars */
+:is(.filter-body, .finder, .rank-bar, .maze-bar, .dd-list) :is(h4, button, span, b, label, .tag) { font-weight: 400; }
+:is(.filter-body, .finder, .rank-bar, .maze-bar) :is(.dd-btn, .opt, .fbox, .slotbox, .xbtn, .ddchip, .btn, input),
+.dd-list, .dd-list .opt, .dd-list .tag, .filter-body .tag, .finder .tag, .ddx { border-radius: 3px; }
+#groups .dd-list.fly, #mazeGroups .dd-list.fly { border-radius: 3px; }
+
+/* relics: the list in the middle of the page, the effect tags under the bar */
+.maze-wrap { max-width: 1400px; margin: 0 auto; }
+.maze-bar .rank-count { margin: 0; }
+/* the full pages' body and (Maze relics) the collapsible Filter panel on the right */
+.page-main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 0; overflow: hidden; }
+.page-main > .page-body { min-height: 0; }
+#mazeGroups .mz-rar { display: flex; flex-wrap: wrap; gap: 4px; }
+#mazeClear { margin-top: 10px; }

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>MLGG Wiki</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="layout" class="layout">
+  <aside class="side">
+    <header class="top">
+      <div class="menu-wrap">
+        <button id="title" class="title-btn" data-menu="1" aria-haspopup="true"><span>MLGG Wiki</span><span class="caret">▾</span></button>
+        <div id="menu" class="menu" hidden></div>
+      </div>
+      <input id="search" type="search" autocomplete="off">
+      <span id="count" class="count"></span>
+      <button id="listFilterBtn" class="reset lf-btn" hidden><svg viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/></svg><b id="listFilterCount"></b></button>
+      <button id="reset" class="reset"><svg viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M4.5 8.5A6 6 0 1 1 4 11.5M4.5 3.5v5h5"/></svg></button>
+    </header>
+    <nav class="modes"><button data-mode="units" data-t="charactersTab"></button><button data-mode="memoria" data-t="memoriaTab"></button></nav>
+    <div id="ufilter" class="finder ufilter" hidden></div>
+    <section class="pane units">
+      <div id="units" class="tiles"></div>
+      <div id="finder" class="finder" hidden></div>
+    </section>
+  </aside>
+  <section id="detail" class="pane detail"></section>
+  <aside id="filters" class="filters">
+    <button id="filterBtn" class="filter-btn"><span data-t="filter"></span><b id="filterCount"></b></button>
+    <div class="filter-body">
+      <div class="fhead"><b data-t="filter" id="fheadLbl"></b><input id="msearch" type="search" autocomplete="off" hidden>
+        <button id="pinBtn" class="pin" aria-pressed="false"><svg viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M7 2h6l-1 5 3 3v1H5v-1l3-3zM10 11v7"/></svg></button></div>
+      <div id="groups"></div>
+      <button id="clear" class="btn" data-t="clear"></button>
+    </div>
+  </aside>
+</main>
+<!-- full pages from the menu (Game mechanics, Percentile ranking): no search, no Characters | Memoria tabs -->
+<main id="page" class="fullpage" hidden>
+  <header class="top page-top">
+    <div class="menu-wrap"><button class="title-btn" data-menu="1" aria-haspopup="true"><span>MLGG Wiki</span><span class="caret">▾</span></button></div>
+    <h1 id="pageTitle"></h1>
+  </header>
+  <div class="page-main">
+    <div id="pageBody" class="page-body"></div>
+    <!-- the Maze relics page's Filter panel: the same collapsible panel as Characters / Memoria -->
+    <aside id="pageFilters" class="filters" hidden>
+      <button class="filter-btn"><span data-t="filter"></span><b id="mazeFilterCount"></b></button>
+      <div class="filter-body">
+        <div class="fhead"><b data-t="filter"></b></div>
+        <div id="mazeGroups"></div>
+        <button id="mazeClear" class="btn" data-t="clear"></button>
+      </div>
+    </aside>
+  </div>
+</main>
+<dialog id="variants" class="dlg"></dialog>
+<dialog id="mdlg" class="dlg mdlg"></dialog>
+<script src="cardanim.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
