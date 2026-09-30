@@ -16,6 +16,7 @@ const UI = {
         nothingMemoria: "No memoria matches.", enemy: "Enemy side", slots: "Slots",
         buff: "Buff", debuff: "Debuff / ailment", other: "Trait / target", char: "Character", slot: "Position",
         offense: "Offense", survival: "Survival", others: "Others", debuffOnly: "Debuff", ailment: "Ailment",
+        range: "Targets", priority: "Priority", attacks: "Attacks", tabs: { ally: "Allies", enemy: "Enemies" },
         slotNames: { 1: "Front left", 2: "Front centre", 4: "Front right", 8: "Back left", 16: "Back centre", 32: "Back right" },
         tagFilter: "Show only what has this tag (click again to stop)", removeFilter: "Remove this filter",
         verNote: { official: "English: the official English of the game's global version where it has it, else AI / machine translation",
@@ -69,6 +70,7 @@ const UI = {
         nothingMemoria: "該当するメモリアがありません。", enemy: "敵側", slots: "配置",
         buff: "バフ", debuff: "デバフ・状態異常", other: "特性・対象", char: "キャラクター", slot: "ポジション",
         offense: "攻撃", survival: "生存", others: "その他", debuffOnly: "デバフ", ailment: "状態異常",
+        range: "対象範囲", priority: "優先対象", attacks: "攻撃効果", tabs: { ally: "味方", enemy: "敵" },
         slotNames: { 1: "前衛左", 2: "前衛中央", 4: "前衛右", 8: "後衛左", 16: "後衛中央", 32: "後衛右" },
         tagFilter: "このタグで絞り込む（もう一度クリックで解除）", removeFilter: "この条件を外す",
         verNote: { official: "英語：グローバル版の公式英語（あるもの）、ほかはAI・機械翻訳",
@@ -111,10 +113,15 @@ const UI = {
 // filter groups per list (owner's order). Picks inside a group = any of them (OR), groups combine with AND;
 // nothing picked in a group = everything. `dd` groups are drop-down lists (logos, tags or names).
 const GROUPS = {
-  // units, the Filter panel: the effect tags in the memoria's groups + Ailment (owner 2026-09-30; the unit's own
-  // data is on the left: UNIT_LEFT)
-  units: [{ field: "offense", dd: true }, { field: "survival", dd: true }, { field: "debuff", dd: true, label: "debuffOnly" },
-    { field: "ailment", dd: true }, { field: "others", dd: true }],
+  // units, the Filter panel: two tabs (owner 2026-10-01), Allies = what helps our side (offense / survival /
+  // others), Enemies = debuff, ailment, targets (range / priority, enemy side only), attacks (counter, follow-up,
+  // extra attack, damage link, traits). The tabs only show / hide groups: picks in both combine (AND). The
+  // unit's own data is on the left: UNIT_LEFT
+  units: [{ field: "offense", dd: true, tab: "ally" }, { field: "survival", dd: true, tab: "ally" },
+    { field: "others", dd: true, tab: "ally" },
+    { field: "debuff", dd: true, label: "debuffOnly", tab: "enemy" }, { field: "ailment", dd: true, tab: "enemy" },
+    { field: "range", dd: true, tab: "enemy" }, { field: "priority", dd: true, tab: "enemy" },
+    { field: "attacks", dd: true, tab: "enemy" }],
   // memoria: rarity (one pick, memoria rarities), the maze switch, then the effect tags (the unit and the position
   // are picked on the left), in the owner's groups
   // owner's layout: [rarity | type] side by side (`row`), then attribute; attribute / type = memoria with an effect
@@ -133,13 +140,19 @@ const UNIT_LEFT = [{ field: "attribute", section: "attributes" }, { field: "role
 // debuff / ailment / others (whatever is not in the others: SPD up, traits, targets, …); the Maze relics page =
 // buff / debuff / ailment / other (trait, target, link)
 const OFFENSE = new Set(["atk_up", "crt_up", "crtdmg_up", "dmg_up", "sure_crit"]);
-const SURVIVAL = new Set(["hp_up", "def_up", "dmg_taken_down", "heal", "heal_up", "regen", "shield", "endure", "dmg_immune"]);
+const SURVIVAL = new Set(["hp_up", "def_up", "dmg_taken_down", "guard", "heal", "heal_up", "regen", "shield", "en_shield",
+  "endure", "dmg_immune", "lifesteal"]);
+// Characters, Enemies tab: how the unit attacks (owner 2026-10-01: traits here too)
+const ATTACKS = new Set(["counter", "follow_up", "extra_attack", "dmg_link"]);
+const isAttack = (t) => ATTACKS.has(t) || tagCat(t) === "trait";
 const isDebuff = (t) => tagCat(t) === "debuff";                  // ailments have their own list (owner)
 const TAG_GROUPS = {
   buff: (t) => tagCat(t) === "buff", debuff: isDebuff, ailment: (t) => tagCat(t) === "ailment",
   other: (t) => ["trait", "target", "link"].includes(tagCat(t)),
   offense: (t) => OFFENSE.has(t), survival: (t) => SURVIVAL.has(t),
-  others: (t) => !OFFENSE.has(t) && !SURVIVAL.has(t) && !isDebuff(t) && tagCat(t) !== "ailment",
+  range: (t) => tagCat(t) === "range", priority: (t) => tagCat(t) === "priority", attacks: isAttack,
+  others: (t) => !OFFENSE.has(t) && !SURVIVAL.has(t) && !isDebuff(t) && !isAttack(t) &&
+    !["ailment", "range", "priority"].includes(tagCat(t)),
 };
 const MEMORIA_FRAME = { 1: "sr", 2: "ssr", 3: "ur", 4: "lr" };             // MemoryRarities -> frame picture
 const SHORT = { attribute: { 1: "Ag", 2: "Sm", 3: "Sh", 4: "Cu", 5: "Co", 6: "Cl" } };   // letters until the icons are there
@@ -150,7 +163,7 @@ const MODES = ["units", "memoria", "ranking", "maze"];
 const FULL = (mode) => mode === "ranking" || mode === "maze";   // full pages: no list tabs
 
 const state = { lang: "en", ver: null, mode: "units", lastList: "units", unit: null, tab: "skills", level: 10,
-  picksBy: { units: {}, memoria: {} }, mazeSw: "exclude", lf: true, pinned: false, statScope: "all",
+  picksBy: { units: {}, memoria: {} }, ftab: "ally", mazeSw: "exclude", lf: true, pinned: false, statScope: "all",
   finder: { unit: null, slot: 0, x: 0, attr: new Set(), role: new Set(), school: new Set(), team: new Set() },
   rank: { attr: new Set(), role: new Set(), sort: "atk", dir: -1 },
   maze: { q: "", rarity: 0, tags: {}, shown: {} } };
@@ -332,10 +345,15 @@ function buildFilters() {
     return `<div class="fgroup" data-group="${g.field}" title="${esc(ui(g.label || g.field))}"><div class="opts">${opts}</div></div>`;
   });
   // groups with the same `row` sit side by side
-  $("#groups").innerHTML = parts.map((html, i) => {
+  const html = parts.map((part, i) => {
     const row = groups()[i].row, prev = groups()[i - 1]?.row, next = groups()[i + 1]?.row;
-    return (row && row !== prev ? '<div class="frow">' : "") + html + (row && row !== next ? "</div>" : "");
-  }).join("");
+    return (row && row !== prev ? '<div class="frow">' : "") + part + (row && row !== next ? "</div>" : "");
+  });
+  // Characters: the Allies | Enemies tabs, each a box of its groups (switching only shows / hides: no bounce)
+  const tabs = [...new Set(groups().map((g) => g.tab).filter(Boolean))];
+  $("#groups").innerHTML = !tabs.length ? html.join("") :
+    `<div class="ftabs">${tabs.map((t) => `<button class="ftab-btn" data-ftab="${t}">${esc(ui("tabs")[t])}<b></b></button>`).join("")}</div>` +
+    tabs.map((t) => `<div class="ftab" data-tab="${t}">${html.filter((_, i) => groups()[i].tab === t).join("")}</div>`).join("");
   updateFilterUI();
 }
 
@@ -379,6 +397,13 @@ function updateFilterUI() {
     }
   }
   $$("#groups [data-mzsw]").forEach((b) => b.classList.toggle("on", b.dataset.mzsw === state.mazeSw));
+  // the tabs: the one shown is lit; each says how many picks it holds (a pick in the hidden tab still counts)
+  $$("#groups [data-ftab]").forEach((b) => {
+    const t = b.dataset.ftab;
+    b.classList.toggle("on", t === state.ftab);
+    b.querySelector("b").textContent = groups().filter((g) => g.tab === t).reduce((k, g) => k + (picks()[g.field]?.size || 0), 0) || "";
+  });
+  $$("#groups .ftab").forEach((box) => { box.hidden = box.dataset.tab !== state.ftab; });
   $("#filterCount").textContent = n || "";
   showActive();
 }
@@ -434,8 +459,9 @@ function passes(vals, all = picks()) {
 // a tag clicked in a skill: show only what has it (the other tag filters are cleared)
 function filterByTag(id) {
   const t = tagOf(id);
-  const field = t && groups().find((g) => TAG_GROUPS[g.field]?.(id))?.field;
+  const group = t && groups().find((g) => TAG_GROUPS[g.field]?.(id)), field = group?.field;
   if (!field) return;
+  if (group.tab) state.ftab = group.tab;                         // the tab holding it comes up
   const already = picks()[field]?.has(id);
   for (const f of Object.keys(TAG_GROUPS)) delete picks()[f];
   if (!already) picks()[field] = new Set([id]);                // clicking the active tag again turns it off
@@ -1443,6 +1469,8 @@ function wire() {
   $("#reset").addEventListener("click", resetLeft);
   $("#msearch").addEventListener("input", applyFilters);
   $("#groups").addEventListener("click", (e) => {
+    const tab = e.target.closest("[data-ftab]");               // Characters: Allies | Enemies
+    if (tab) { state.ftab = tab.dataset.ftab; closeDropdowns(); return updateFilterUI(); }
     const sw = e.target.closest("[data-mzsw]");                // the maze switch (Memoria)
     if (sw) { state.mazeSw = sw.dataset.mzsw; return applyFilters(); }
     const x = e.target.closest("[data-ddx]");
