@@ -330,14 +330,6 @@ button.tag:hover { box-shadow: inset 0 0 0 1px currentColor; filter: brightness(
 .lang-row .ml { border: 0; background: none; padding: 5px 18px; cursor: pointer; font-weight: 700; }
 .lang-row .ml:hover { background: var(--line); }
 .lang-row .ml.on { background: var(--accent); color: #fff; }
-.ver-wrap { display: flex; flex-direction: column; padding-bottom: 4px; }
-.ver-dd { margin: 2px 12px 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 10px;
-  border: 1px solid var(--line); border-radius: 8px; background: var(--bg); cursor: pointer; }
-.ver-sub { margin: 4px 12px 0; display: flex; flex-direction: column; gap: 2px; padding: 4px; border: 1px solid var(--line); border-radius: 8px;
-  background: var(--bg); }
-.ver-sub .mv { border: 0; background: none; text-align: left; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
-.ver-sub .mv:hover { background: var(--line); }
-.ver-sub .mv.on { background: var(--accent); color: #fff; }
 /* full pages (Game mechanics, Percentile ranking): a top bar with the menu, then the page */
 .fullpage { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .page-top h1 { margin: 0 0 0 8px; font-size: 16px; color: var(--muted); font-weight: 600; }
