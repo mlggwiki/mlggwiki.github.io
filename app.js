@@ -19,14 +19,14 @@ const UI = {
         range: "Targets", priority: "Priority", attacks: "Attacks", tabs: { ally: "Allies", enemy: "Enemies" },
         slotNames: { 1: "Front left", 2: "Front centre", 4: "Front right", 8: "Back left", 16: "Back centre", 32: "Back right" },
         tagFilter: "Show only what has this tag (click again to stop)", removeFilter: "Remove this filter",
-        verNote: { official: "English: the official English of the game's global version where it has it, else AI / machine translation",
-          aimtl: "English: AI translation (Claude Opus, Sonnet, DeepSeek), else Google machine translation" },
+        verNote: { official: "English: the official English of the game's global version where it has it, else AI translation",
+          aimtl: "English: AI translation (Claude Opus and Sonnet)" },
         variant: "Variant", variants: "Units of this character", close: "Close", released: "Released",
         launch: "Launch unit", sinceBy: { gacha: "first gacha banner", login: "login bonus" },
         // menu
         menuTip: "Menu: pages and language", menu: { list: "Characters / Memoria", maze: "Maze relics",
           ranking: "Percentile ranking" }, language: "Language", japanese: "日本語 (JP)",
-        verNames: { aimtl: "AI+MTL", official: "Official" },
+        verNames: { aimtl: "AI", official: "Official" },
         // unit page
         findMemoria: "Find memoria", findMemoriaTip: "The Memoria page with this unit picked",
         compareWith: "Compare with", allUnits: "All units", maxValues: "Max values", rankTip: "Rank among the units compared",
@@ -73,13 +73,13 @@ const UI = {
         range: "対象範囲", priority: "優先対象", attacks: "攻撃効果", tabs: { ally: "味方", enemy: "敵" },
         slotNames: { 1: "前衛左", 2: "前衛中央", 4: "前衛右", 8: "後衛左", 16: "後衛中央", 32: "後衛右" },
         tagFilter: "このタグで絞り込む（もう一度クリックで解除）", removeFilter: "この条件を外す",
-        verNote: { official: "英語：グローバル版の公式英語（あるもの）、ほかはAI・機械翻訳",
-          aimtl: "英語：AI翻訳（Claude Opus・Sonnet・DeepSeek）、ほかはGoogle機械翻訳" },
+        verNote: { official: "英語：グローバル版の公式英語（あるもの）、ほかはAI翻訳",
+          aimtl: "英語：AI翻訳（Claude Opus・Sonnet）" },
         variant: "バリエーション", variants: "このキャラクターのユニット", close: "閉じる", released: "実装",
         launch: "リリース時から", sinceBy: { gacha: "初ピックアップガチャ", login: "ログインボーナス" },
         menuTip: "メニュー：ページと言語", menu: { list: "キャラクター / メモリア", maze: "迷宮レリック",
           ranking: "パーセンタイル順位" }, language: "言語", japanese: "日本語 (JP)",
-        verNames: { aimtl: "AI+MTL", official: "Official" },
+        verNames: { aimtl: "AI", official: "Official" },
         findMemoria: "メモリアを探す", findMemoriaTip: "このユニットを選んだ状態でメモリアのページへ",
         compareWith: "比較対象", allUnits: "全ユニット", maxValues: "最大値", rankTip: "比較対象の中での順位",
         pctTip: "他の{n}ユニットのうち{p}%以上を上回る（同値を含む）",
@@ -185,7 +185,7 @@ const store = {
 
 // ---- text -------------------------------------------------------------------------------
 const ui = (k) => UI[state.lang][k];
-// English of the version picked: AI+MTL = text.en; Official = its own line where it differs, else
+// English of the version picked: AI (id aimtl) = text.en; Official = its own line where it differs, else
 // text.en. No English: Japanese.
 const enText = (key) => { const v = D.text.versions?.[state.ver]; return v && key in v ? v[key] : D.text.en[key] || ""; };
 const text = (key) => (state.lang === "en" ? enText(key) : D.text.ja[key]) || D.text.ja[key] || "";
@@ -1395,7 +1395,7 @@ function setMode(mode) {
   buildMenu();
 }
 
-// ---- the menu under the title: pages, then the language: AI+MTL | Official | JP (owner 2026-10-01) --------
+// ---- the menu under the title: pages, then the language: AI | Official | JP (owner 2026-10-01) -----------
 function buildMenu() {
   const on = (m) => (m === "list" ? !FULL(state.mode) : state.mode === m);
   // the Maze relics page is hidden from the menu (owner 2026-09-30; its code and #maze stay: add "maze" back to show it)
@@ -1407,7 +1407,7 @@ function buildMenu() {
   $("#menu").innerHTML = `${pages}<div class="menu-sep"></div><div class="menu-lbl">${esc(ui("language"))}</div>${langs}`;
 }
 
-// the English choices, the first = what a new visitor gets (AI+MTL = text.en, owner 2026-10-01)
+// the English choices, the first = what a new visitor gets (AI = text.en, owner 2026-10-01; id "aimtl" kept: saved choices)
 const verIds = () => ["aimtl", ...(D.versions || []).map((v) => v.id)];
 
 function setLang(lang, ver) {
