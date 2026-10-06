@@ -208,7 +208,6 @@ button, input, select { font: inherit; color: inherit; }
 .dd-list.up { top: auto; bottom: calc(100% - 20px); }
 .dd-list .opt { min-height: 34px; }
 .dd-list .opt .tag { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.check { display: flex; align-items: center; gap: 6px; color: var(--muted); margin: 8px 0 4px; }
 #clear { margin-top: 8px; }
 .btn { border: 1px solid var(--accent); color: var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 6px 12px;
   font-weight: 600; cursor: pointer; }
@@ -511,7 +510,6 @@ button.tag:hover { box-shadow: inset 0 0 0 1px currentColor; filter: brightness(
 .mz-rar { display: flex; gap: 4px; }
 .opt.mz { border: 1px solid var(--line); padding: 3px 12px; font-size: 12px; font-weight: 700; color: var(--muted); }
 .opt.mz.on { color: var(--accent); }
-.maze-bar .check { margin: 0; }
 .maze-bar .note-line { flex-basis: 100%; margin: 0; }
 /* one relic per row: picture | name | rarity buttons | effect | type / attribute condition */
 .rgrid { display: flex; flex-direction: column; gap: 6px; max-width: 1400px; }

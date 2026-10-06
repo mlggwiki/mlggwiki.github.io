@@ -172,6 +172,7 @@ const groups = () => GROUPS[state.mode] || [];
 let VALUES = { units: new Map(), memoria: new Map() };          // id -> {field: [values as strings]}, computed once
 let D = null;                                   // the data file
 let CHARS = {}, UNITS = new Map(), STATV = new Map(), CONDS = new Map();
+let MNEW = new Map();                           // memoria id -> its date for "newest first" (newestMemoria)
 let TILES = new Map();                          // unit id -> its tile (built once per language)
 let FTILES = new Map();                         // unit id -> its tile in the memoria finder
 const $ = (sel) => document.querySelector(sel);
@@ -654,6 +655,21 @@ function computeConds() {
   CONDS = new Map(D.memoria.map((m) => [m.id, m.skills.map((sid) => ({ sid, conds: skillConds(m, sid) }))]));
 }
 
+// memoria newest first (owner 2026-10-07): `since` = when the game hands it out or first released it
+// (extract.py; gacha memoria have none). Ids grow with time inside a rarity, so one without a date is
+// at least as new as the latest dated memoria of its rarity with a lower id.
+function newestMemoria() {
+  const upTo = {};
+  for (const m of [...D.memoria].sort((a, b) => a.id - b.id)) {
+    const prev = upTo[m.rarity] || "";
+    MNEW.set(m.id, m.since || prev);
+    if ((m.since || "") > prev) upTo[m.rarity] = m.since;
+  }
+}
+function byNewest(a, b) {
+  return MNEW.get(b.id).localeCompare(MNEW.get(a.id)) || b.rarity - a.rarity || b.id - a.id;
+}
+
 // the memoria that help UNIT at SLOT (null / 0 = don't care): [{m, applies: [sid], score}]
 function finderMatches(unit, slot, tagPicks = picks(), q = "", first = false, x = state.finder.x) {
   const any = !unit && !slot, out = [];
@@ -674,7 +690,7 @@ function finderMatches(unit, slot, tagPicks = picks(), q = "", first = false, x 
     out.push({ m, applies, score });
     if (first) return out;                        // only "is there any?" (greying out options)
   }
-  if (!any) out.sort((a, b) => b.applies.length - a.applies.length || b.score - a.score || b.m.rarity - a.m.rarity || b.m.id - a.m.id);
+  if (!any) out.sort((a, b) => b.applies.length - a.applies.length || b.score - a.score || byNewest(a.m, b.m));
   return out;
 }
 // Find Memoria (owner): the advanced filter's box searches memoria, the top box characters (the unit tiles)
@@ -1667,8 +1683,8 @@ async function main() {
   D.units.sort((a, b) => (b.since || "").localeCompare(a.since || "") || b.rarity - a.rarity || a.id - b.id);
   UNITS = new Map(D.units.map((u) => [u.id, u]));
   STATV = new Map(D.units.map((u) => [u.id, statValues(u)]));
-  // memoria: UR first, then newest (highest id) first; no release dates for them
-  D.memoria.sort((a, b) => b.rarity - a.rarity || b.id - a.id);
+  newestMemoria();
+  D.memoria.sort(byNewest);
   computeValues();
   computeConds();
   const m = location.hash.match(/^#(unit|memoria|ranking|maze)(?:\/(\d+))?/);
