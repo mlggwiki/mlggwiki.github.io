@@ -22,7 +22,7 @@ const UI = {
         verNote: { official: "English: the official English of the game's global version where it has it, else AI translation",
           aimtl: "English: AI translation (Claude Opus and Sonnet)" },
         variant: "Variant", variants: "Units of this character", close: "Close", released: "Released",
-        launch: "Launch unit", sinceBy: { gacha: "first gacha banner", login: "login bonus" },
+        launch: "Launch unit", unreleased: "Not released yet", sinceBy: { gacha: "first gacha banner", login: "login bonus" },
         // menu
         menuTip: "Menu: pages and language", menu: { list: "Characters / Memoria", maze: "Maze relics",
           ranking: "Percentile ranking" }, language: "Language", japanese: "日本語 (JP)",
@@ -38,8 +38,9 @@ const UI = {
         histPaid: "DMM POINT banner only", histFrom: "From", histTo: "Until", histWhat: "Banner",
         histNote: "The game reuses a banner for a rerun and overwrites its dates, so the wiki keeps every date it has seen; reruns from before September 2026 may be missing.",
         histNone: "Launch unit: no banner or login bonus for it in the game data.",
+        histUnreleased: "Not released yet: no banner or login bonus for it in the game data so far.",
         animLoading: "Loading the animation…", animFail: "The animation could not be loaded.",
-        animNote: "The card art as the game animates it (from the scene player). Buttons: the camera moves, then the idle loop.",
+        animNote: "The card art as the game animates it. Buttons: the camera moves, then the idle loop.",
         animNames: { IdlingLoop: "Idle loop", FirstCameraIn: "Camera 1", SecondCameraIn: "Camera 2", ThirdCameraIn: "Camera 3" },
         // memoria finder
         posHead: "Position", lfTip: "Show / hide the filter",
@@ -76,7 +77,7 @@ const UI = {
         verNote: { official: "英語：グローバル版の公式英語（あるもの）、ほかはAI翻訳",
           aimtl: "英語：AI翻訳（Claude Opus・Sonnet）" },
         variant: "バリエーション", variants: "このキャラクターのユニット", close: "閉じる", released: "実装",
-        launch: "リリース時から", sinceBy: { gacha: "初ピックアップガチャ", login: "ログインボーナス" },
+        launch: "リリース時から", unreleased: "未実装", sinceBy: { gacha: "初ピックアップガチャ", login: "ログインボーナス" },
         menuTip: "メニュー：ページと言語", menu: { list: "キャラクター / メモリア", maze: "迷宮レリック",
           ranking: "パーセンタイル順位" }, language: "言語", japanese: "日本語 (JP)",
         verNames: { aimtl: "AI", official: "Official" },
@@ -90,8 +91,9 @@ const UI = {
         histPaid: "DMM POINT限定のみ", histFrom: "開始", histTo: "終了", histWhat: "ガチャ",
         histNote: "ゲームは復刻でガチャのデータを使い回して日付を上書きするため、Wikiは見た日付をすべて残します。2026年9月より前の復刻は抜けている場合があります。",
         histNone: "リリース時からのユニット：ゲームデータにガチャ・ログインボーナスがありません。",
+        histUnreleased: "未実装：ゲームデータにまだガチャ・ログインボーナスがありません。",
         animLoading: "アニメーションを読み込み中…", animFail: "アニメーションを読み込めませんでした。",
-        animNote: "ゲームのカードアニメーション（シーンプレイヤーより）。ボタン：カメラの動き、その後待機ループ。",
+        animNote: "ゲームのカードアニメーション。ボタン：カメラの動き、その後待機ループ。",
         animNames: { IdlingLoop: "待機ループ", FirstCameraIn: "カメラ1", SecondCameraIn: "カメラ2", ThirdCameraIn: "カメラ3" },
         posHead: "ポジション", lfTip: "フィルターの表示 / 非表示",
         everyone: "味方全員", oneAlly: "味方1人", matchTip: "このメモリアのスキル{n}個が対象", applies: "対象",
@@ -999,7 +1001,7 @@ function variantsDialog(u) {
       <button class="dlg-close" data-close="1" title="${esc(ui("close"))}">×</button></div>
     <div class="dlg-list">${siblings.map((x) => `<button class="vrow rf${x.rarity}${x.id === u.id ? " on" : ""}" data-unit="${x.id}">
       ${pic(x, "small")}${rarityLogo(x.rarity)}<span class="vt">${esc(unitTitle(x))}</span>
-      <small>${esc(x.since || ui("launch"))}</small></button>`).join("")}</div>`;
+      <small>${esc(x.since || ui(x.released === false ? "unreleased" : "launch"))}</small></button>`).join("")}</div>`;
   d.showModal();
   placeNear(d, $("#variantBtn"));
 }
@@ -1116,7 +1118,7 @@ function profileTab(u) {
   const c = CHARS[u.char] || {};
   const field = (k, v) => (v ? `<dt>${esc(ui(k))}</dt><dd>${esc(v)}</dd>` : "");
   const birthday = c.birthday && c.birthday[0] ? `${c.birthday[0]}/${c.birthday[1]}` : "";
-  const since = u.since ? `${u.since} (${ui("sinceBy")[u.sinceBy] || ""})` : ui("launch");
+  const since = u.since ? `${u.since} (${ui("sinceBy")[u.sinceBy] || ""})` : ui(u.released === false ? "unreleased" : "launch");
   return `<div class="card profile"><dl>
       ${field("released", since)}${field("team", c.team ? look("teams", c.team) : "")}${field("school", look("schools", c.school))}
       ${field("birthday", birthday)}${field("height", c.height ? `${c.height} cm` : text(`char.${u.char}.height`))}
@@ -1130,7 +1132,7 @@ function profileTab(u) {
 // pickups of the same kind are reruns
 function historyTab(u) {
   const h = u.history || [];
-  if (!h.length) return `<div class="card"><p class="note-line">${esc(ui("histNone"))}</p></div>`;
+  if (!h.length) return `<div class="card"><p class="note-line">${esc(ui(u.released === false ? "histUnreleased" : "histNone"))}</p></div>`;
   const kinds = ui("histKind"), seen = new Set();
   const rows = h.map((e) => {
     let kind = e.kind;
@@ -1679,8 +1681,10 @@ async function main() {
   CHARS = Object.fromEntries(D.characters.map((c) => [c.id, c]));
   TAGCAT = new Map(D.tags.list.map((t) => [t.id, t.cat]));
   for (const c of D.characters) if (c.team != null && TEAM_SCHOOL[c.team] == null) TEAM_SCHOOL[c.team] = c.school;
-  // newest first (first release: the date the unit came out, never a rerun); launch units (no date) after them, SSR first
-  D.units.sort((a, b) => (b.since || "").localeCompare(a.since || "") || b.rarity - a.rarity || a.id - b.id);
+  // newest first (first release: the date the unit came out, never a rerun); unreleased units (owner
+  // 2026-10-07) count as the newest, launch units (no date) come last, SSR first
+  D.units.sort((a, b) => (a.released !== false) - (b.released !== false) ||
+    (b.since || "").localeCompare(a.since || "") || b.rarity - a.rarity || a.id - b.id);
   UNITS = new Map(D.units.map((u) => [u.id, u]));
   STATV = new Map(D.units.map((u) => [u.id, statValues(u)]));
   newestMemoria();
